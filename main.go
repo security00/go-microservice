@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/security00/go-microservice/introduction/handlers"
+	"github.com/security00/go-microservice/handlers"
 	"log"
 	"net/http"
 	"os"
