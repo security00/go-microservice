@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	l := log.New(os.Stdout, "product-api", log.LstdFlags)
+	l := log.New(os.Stdout, "product-api ", log.LstdFlags)
 	ph := handlers.NewProduct(l)
 
 	sm := http.NewServeMux()
@@ -30,6 +30,8 @@ func main() {
 			l.Fatal(err)
 		}
 	}()
+
+	l.Println("Starting Server, Listening Port 9000...")
 
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Interrupt)
