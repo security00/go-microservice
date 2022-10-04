@@ -30,7 +30,7 @@ curl localhost:9000 | jq
 ```
 POST: 
 ```curl
-curl localhost:9000  -d '{"id": 3, "name": "tea", "descrption": "a nice couple of tea"}'
+curl localhost:9000  -d '{"id": 3, "name": "tea", "description": "a nice couple of tea"}'
 ```
 PUT
 ```curl
