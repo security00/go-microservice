@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/gorilla/mux"
 	"github.com/security00/go-microservice/product-api/handlers"
 	"log"
 	"net/http"
@@ -14,8 +15,21 @@ func main() {
 	l := log.New(os.Stdout, "product-api ", log.LstdFlags)
 	ph := handlers.NewProduct(l)
 
-	sm := http.NewServeMux()
-	sm.Handle("/", ph)
+	sm := mux.NewRouter()
+
+	getRouter := sm.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", ph.GetProducts)
+
+	putRouter := sm.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id[0-9]+}", ph.UpdateProduct)
+	putRouter.Use(ph.MiddlewareProductValidation)
+
+	postRouter := sm.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", ph.AddProduct)
+	postRouter.Use(ph.MiddlewareProductValidation)
+
+	delRouter := sm.Methods(http.MethodDelete).Subrouter()
+	delRouter.HandleFunc("/{id[0-9]+}", ph.DeleteProduct)
 
 	s := &http.Server{
 		Addr:         ":9000",

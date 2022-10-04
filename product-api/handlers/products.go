@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"context"
+	"github.com/gorilla/mux"
 	"github.com/security00/go-microservice/product-api/data"
 	"log"
 	"net/http"
-	"regexp"
 	"strconv"
 )
 
@@ -18,34 +19,7 @@ func NewProduct(l *log.Logger) *Products {
 	}
 }
 
-func (p *Products) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		p.getProducts(rw, r)
-		return
-	}
-
-	if r.Method == http.MethodPost {
-		p.addProduct(rw, r)
-		return
-	}
-
-	if r.Method == http.MethodPut {
-		id := p.getId(rw, r)
-		p.updateProduct(rw, r, id)
-		return
-	}
-
-	if r.Method == http.MethodDelete {
-		id := p.getId(rw, r)
-		p.deleteProduct(rw, r, id)
-		return
-	}
-
-	// catch all
-	rw.WriteHeader(http.StatusMethodNotAllowed)
-}
-
-func (p *Products) getProducts(rw http.ResponseWriter, r *http.Request) {
+func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 	lp := data.GetProduct()
 	err := lp.ToJSON(rw)
 	if err != nil {
@@ -53,20 +27,26 @@ func (p *Products) getProducts(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p *Products) addProduct(rw http.ResponseWriter, r *http.Request) {
+func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
 	p.l.Println("Handle POST Product")
 
 	prod := p.handleData(rw, r)
 
-	data.AddProduct(prod)
+	data.AddProduct(&prod)
 }
 
-func (p *Products) updateProduct(rw http.ResponseWriter, r *http.Request, id int) {
-	p.l.Println("Handle PUT Product")
+func (p *Products) UpdateProduct(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(rw, "Convert to int failed", http.StatusBadRequest)
+		return
+	}
+	p.l.Println("Handle PUT Product ", id)
 
 	prod := p.handleData(rw, r)
 
-	err := data.UpdateProduct(id, prod)
+	err = data.UpdateProduct(id, &prod)
 	if err == data.ErrorProductNotFound {
 		http.Error(rw, "Product not found", http.StatusNotFound)
 		return
@@ -78,10 +58,16 @@ func (p *Products) updateProduct(rw http.ResponseWriter, r *http.Request, id int
 	}
 }
 
-func (p *Products) deleteProduct(rw http.ResponseWriter, r *http.Request, id int) {
-	p.l.Println("Handle DELETE Product")
+func (p *Products) DeleteProduct(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(rw, "Convert to int failed", http.StatusBadRequest)
+		return
+	}
+	p.l.Println("Handle DELETE Product ", id)
 
-	err := data.DeleteProduct(id)
+	err = data.DeleteProduct(id)
 	if err != nil {
 		http.Error(rw, "Product not found", http.StatusNotFound)
 		return
@@ -89,38 +75,28 @@ func (p *Products) deleteProduct(rw http.ResponseWriter, r *http.Request, id int
 
 }
 
-func (p *Products) handleData(rw http.ResponseWriter, r *http.Request) *data.Product {
-	prod := &data.Product{}
-	err := prod.FromJSON(r.Body)
-	if err != nil {
-		http.Error(rw, "Unable to unmarshal json", http.StatusBadRequest)
-	}
+func (p *Products) handleData(rw http.ResponseWriter, r *http.Request) data.Product {
+	prod := r.Context().Value(KeyProduct{}).(data.Product)
 	return prod
 }
 
-func (p *Products) getId(rw http.ResponseWriter, r *http.Request) int {
-	reg := regexp.MustCompile(`/([0-9]+)`)
-	g := reg.FindAllStringSubmatch(r.URL.Path, -1)
+type KeyProduct struct {
+}
 
-	if len(g) != 1 {
-		http.Error(rw, "Invalid URI", http.StatusBadRequest)
-	}
+func (p *Products) MiddlewareProductValidation(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		prod := data.Product{}
+		log.Printf("r.Body: %#v\n", r.Body)
+		err := prod.FromJSON(r.Body)
+		if err != nil {
+			p.l.Println("[Error] deserializing product ", err)
+			http.Error(rw, "Unable to unmarshal json", http.StatusBadRequest)
+			return
+		}
 
-	if len(g[0]) != 2 {
-		http.Error(rw, "Invalid URI", http.StatusBadRequest)
-	}
+		ctx := context.WithValue(r.Context(), KeyProduct{}, prod)
+		req := r.WithContext(ctx)
 
-	idString := g[0][1]
-	id, err := strconv.Atoi(idString)
-	if err != nil {
-		http.Error(rw, "Invalid URI", http.StatusBadRequest)
-	}
-
-	if id <= 0 {
-		http.Error(rw, "Invalid id", http.StatusBadRequest)
-	}
-
-	p.l.Println("got id:", id)
-
-	return id
+		next.ServeHTTP(rw, req)
+	})
 }
