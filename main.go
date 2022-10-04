@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"github.com/security00/go-microservice/introduction/handlers"
+	"github.com/security00/go-microservice/handlers"
 	"log"
 	"net/http"
 	"os"
@@ -11,14 +11,11 @@ import (
 )
 
 func main() {
-
-	l := log.New(os.Stdout, "product-api", log.LstdFlags)
-	hh := handlers.NewHello(l)
-	gh := handlers.NewGoodBye(l)
+	l := log.New(os.Stdout, "product-api ", log.LstdFlags)
+	ph := handlers.NewProduct(l)
 
 	sm := http.NewServeMux()
-	sm.Handle("/", hh)
-	sm.Handle("/goodbye", gh)
+	sm.Handle("/", ph)
 
 	s := &http.Server{
 		Addr:         ":9000",
@@ -33,6 +30,8 @@ func main() {
 			l.Fatal(err)
 		}
 	}()
+
+	l.Println("Starting Server, Listening Port 9000...")
 
 	sigChan := make(chan os.Signal)
 	signal.Notify(sigChan, os.Interrupt)

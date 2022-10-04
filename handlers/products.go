@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/security00/go-microservice/product-api/data"
+	"github.com/security00/go-microservice/data"
 	"log"
 	"net/http"
 	"regexp"
